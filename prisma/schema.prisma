@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  gstin       String?
+  address     String
+  city        String
+  state       String
+  pincode     String
+  phone       String?
+  email       String?
+  bankName    String?
+  bankAccount String?
+  bankIFSC    String?
+  signature   String? // Base64 encoded image
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("companies")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  gstin     String?
+  address   String
+  city      String
+  state     String
+  stateCode String
+  pincode   String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@map("customers")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  hsn         String
+  unit        String   @default("PCS")
+  price       Float
+  taxRate     Float    @default(18.0)
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  category    String   @default("General") // Fertilizers, Micronutrients, Bio-fertilizers, Pesticides, General
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoiceItems    InvoiceItem[]
+  stockMovements  StockMovement[]
+
+  @@map("products")
+}
+
+model Invoice {
+  id            String      @id @default(cuid())
+  invoiceNumber String      @unique
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  customerName  String?     // For custom/one-time customers
+  invoiceDate   DateTime    @default(now())
+  dueDate       DateTime?
+  subtotal      Float
+  discount      Float       @default(0)
+  cgst          Float       @default(0)
+  sgst          Float       @default(0)
+  igst          Float       @default(0)
+  total         Float
+  status        String        @default("DRAFT") // DRAFT, SENT, PAID, CANCELLED
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  items InvoiceItem[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  rate      Float
+  discount  Float   @default(0)
+  taxRate   Float
+  cgst      Float   @default(0)
+  sgst      Float   @default(0)
+  igst      Float   @default(0)
+  amount    Float
+
+  @@map("invoice_items")
+}
+
+model StockMovement {
+  id          String           @id @default(cuid())
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id])
+  type        String           // IN, OUT, ADJUSTMENT
+  quantity    Int
+  reference   String? // Invoice number or other reference
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@map("stock_movements")
+}
+
+model InvoiceCounter {
+  id           String @id @default(cuid())
+  year         Int
+  lastNumber   Int    @default(0)
+  prefix       String @default("INV")
+
+  @@unique([year, prefix])
+  @@map("invoice_counters")
+}
+
